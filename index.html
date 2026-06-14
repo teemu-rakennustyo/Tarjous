@@ -497,17 +497,23 @@ document.querySelector('[onclick="showPage(3)"]').onclick=showPage3;
 
 <style>
 @media print {
+  @page { size: A4; margin: 0; }
+  html, body { width: 210mm; margin: 0 !important; padding: 0 !important; background: #fff !important; }
   .header,.steps,.btn-primary,.btn-secondary,.btn-back,.tip,#page0,#page1,#page2,.page:not(#page3){display:none!important}
-  #page3{display:block!important}
+  #page3{display:block!important;width:210mm!important}
   #page3>div:first-child{display:none!important}
-  .preview{box-shadow:none!important;border-radius:0!important;margin:0!important}
-  .container{padding:0!important}
-  body{background:#fff!important;margin:0!important}
+  .container{padding:0!important;max-width:100%!important;width:210mm!important}
+  .preview{box-shadow:none!important;border-radius:0!important;margin:0!important;width:210mm!important}
+  .preview-body{padding:20mm 18mm!important}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
-  .preview-header{background:#2C2416!important;border-bottom:3px solid #C9A560!important}
-  .preview-header img{height:50px!important;width:auto!important;display:block!important}
+  .preview-header{background:#2C2416!important;border-bottom:3px solid #C9A560!important;padding:12mm 18mm!important}
+  .preview-header img{height:16mm!important;width:auto!important;display:block!important}
+  .preview-contact{font-size:10pt!important}
+  .preview-title{font-size:24pt!important}
+  .preview-table{font-size:9pt!important}
   .preview-kt{background:#f4f0e8!important}
   .preview-tot{background:#2C2416!important}
+  .preview-footer{margin-top:8mm!important}
 }
 </style>
 </body>
