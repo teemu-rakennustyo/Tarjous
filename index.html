@@ -8,7 +8,7 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:Arial,sans-serif;background:#f9f6f0;min-height:100vh;color:#1a1a1a}
 :root{--brown:#2C2416;--gold:#C9A560;--gold2:#b8922a;--cream:#f9f6f0}
-.header{background:#000;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid var(--gold);position:sticky;top:0;z-index:10}
+.header{background:var(--brown);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid var(--gold);position:sticky;top:0;z-index:10}
 .header img{height:56px;width:auto;mix-blend-mode:lighten}
 .steps{background:#fff;border-bottom:1px solid #e0d8c8;padding:10px 16px;display:flex;align-items:center;gap:4px}
 .step{display:flex;align-items:center;gap:6px}
@@ -497,16 +497,18 @@ document.querySelector('[onclick="showPage(3)"]').onclick=showPage3;
 
 <style>
 @media print {
-  @page { size: A4 portrait; margin: 8mm; }
-  html,body{margin:0!important;padding:0!important;background:#fff!important;width:100%!important}
+  @page { size: A4 portrait; margin: 0; }
+  html,body{margin:0!important;padding:0!important;background:#fff!important;width:210mm!important}
   .header,.steps,.btn-primary,.btn-secondary,.btn-back,.tip,#page0,#page1,#page2,.page:not(#page3){display:none!important}
   #page3{display:block!important}
   #page3>div:first-child{display:none!important}
-  .container{padding:0!important;max-width:100%!important}
-  .preview{box-shadow:none!important;border-radius:0!important;margin:0!important;width:100%!important}
+  .container{padding:0!important;max-width:100%!important;width:210mm!important}
+  .preview{box-shadow:none!important;border-radius:0!important;margin:0!important;width:210mm!important;min-height:297mm!important;display:flex!important;flex-direction:column!important}
+  .preview-body{flex:1!important;padding:12mm 16mm!important;display:flex!important;flex-direction:column!important}
+  .preview-footer{margin-top:auto!important;padding-top:6mm!important;border-top:1px solid #ddd!important}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
-  .preview-header{background:#000!important}
-  .preview-header img{height:14mm!important;width:auto!important}
+  .preview-header{background:#2C2416!important;border-bottom:3px solid #C9A560!important}
+  .preview-header img{height:14mm!important;width:auto!important;mix-blend-mode:lighten!important}
   .preview-kt{background:#f4f0e8!important}
   .preview-tot{background:#2C2416!important}
 }
