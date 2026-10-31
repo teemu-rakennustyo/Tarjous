@@ -384,10 +384,16 @@ async function claude(content, maxTokens=4000){
   });
   const data = await resp.json().catch(()=>({}));
   if(!resp.ok || data.error) throw new Error(data.error?.message || ("Palvelin vastasi "+resp.status));
-  const text=(data.content||[]).map(c=>c.text||"").join("");
+  const text=(data.content||[]).filter(c=>c.type==="text").map(c=>c.text||"").join("");
+  const sr=data.stop_reason||"?";
   const a=text.indexOf("{"), b=text.lastIndexOf("}");
-  if(a<0||b<0) throw new Error("Vastauksesta ei löytynyt tarjousdataa. Yritä uudelleen.");
-  return JSON.parse(text.slice(a,b+1));
+  if(a<0||b<0){
+    if(sr==="max_tokens") throw new Error("Vastaus katkesi kesken (liian pitkä). Yritä uudelleen tai lyhennä kuvausta.");
+    if(sr==="refusal") throw new Error("Malli kieltäytyi vastaamasta. Muotoile pyyntö uudelleen.");
+    throw new Error(`Malli ei palauttanut tarjousdataa (syy: ${sr}). Vastaus alkoi: "${text.slice(0,160)||"tyhjä"}"`);
+  }
+  try{ return JSON.parse(text.slice(a,b+1)); }
+  catch(e){ throw new Error(sr==="max_tokens"?"Vastaus katkesi kesken. Yritä uudelleen.":"Tarjousdata oli virheellisessä muodossa. Yritä uudelleen."); }
 }
 
 /* Kuvan pienennys ennen lähetystä */
@@ -567,7 +573,7 @@ TARJOUSPYYNTÖ / MUISTIINPANOT:
 ${text||"(vain kuvat)"}`;
   try{
     const content=[...NEW.imgs.map(imgBlock),{type:"text",text:prompt}];
-    const d=await claude(content,4000);
+    const d=await claude(content,16000);
     const j=newJob({
       otsikko:d.otsikko||"", asiakas:Object.assign({nimi:"",puh:"",email:"",osoite:"",kunta:""},d.asiakas||{}),
       saate:d.saate||"", oletukset:d.oletukset||[], kysyttavaa:d.kysyttavaa||[], lahde:text,
@@ -894,7 +900,7 @@ ${jobs}
 Palauta VAIN JSON:
 {"toimittaja":"","pvm":"YYYY-MM-DD","summa_alv0":0,"alv":0,"yhteensa":0,"kuvaus":"lyhyesti mitä ostettiin","tyomaa_id":"","perustelu":"lyhyt syy työmaan valinnalle"}`;
   try{
-    const d=await claude([imgBlock(img),{type:"text",text:prompt}],800);
+    const d=await claude([imgBlock(img),{type:"text",text:prompt}],4000);
     const valid=activeJobs().some(j=>j.id===d.tyomaa_id);
     RC.d={toimittaja:d.toimittaja,pvm:d.pvm||todayISO(),summa:num(d.summa_alv0),alv:num(d.alv),yhteensa:num(d.yhteensa),kuvaus:d.kuvaus,jobId:valid?d.tyomaa_id:RC.d.jobId,syy:valid?d.perustelu:""};
     if(!RC.d.summa && RC.d.yhteensa){ const a=num(S().alv)/100; RC.d.summa=Math.round(RC.d.yhteensa/(1+a)*100)/100; RC.d.alv=Math.round((RC.d.yhteensa-RC.d.summa)*100)/100; }
