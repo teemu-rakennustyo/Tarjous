@@ -245,6 +245,37 @@ nav.bar button.fab span.c svg{stroke:#1d170d;width:28px;height:28px;stroke-width
 .pdoc .psign{margin-top:7mm;display:grid;grid-template-columns:1fr 1fr;gap:10mm;font-size:8.5pt;color:#5d5444}
 .pdoc .psign div{border-top:.3mm solid #8a7f6c;padding-top:1.5mm}
 .pdoc .pf{margin-top:auto;padding-top:5mm;font-size:8pt;color:#8a7f6c;text-align:center;border-top:.3mm solid #e6dfd0}
+
+/* Työtuntilista (vanhan pohjan mukainen) */
+.pdoc.tl{font-family:Helvetica,Arial,sans-serif;font-size:9.5pt;color:#1d1a14}
+.tl .tl-top{background:#2B2417;padding:3.5mm 16mm;border-bottom:1.2mm solid #C9A560}
+.tl .tl-top img{height:20mm;width:auto;display:block}
+.tl .tl-body{padding:7mm 16mm 6mm;flex:1;display:flex;flex-direction:column}
+.tl .tl-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:.5mm solid #C9A560;padding-bottom:2.5mm}
+.tl h1{font-family:Helvetica,Arial,sans-serif;font-size:21pt;font-weight:700;color:#2B2417;letter-spacing:.3pt;margin-top:2mm}
+.tl .tl-meta{font-size:8.5pt;border-collapse:collapse}
+.tl .tl-meta td{padding:.2mm 0}
+.tl .tl-meta td:first-child{color:#8a7f6c;text-align:right;padding-right:6mm}
+.tl .tl-meta td:last-child{font-weight:700;text-align:right}
+.tl .tl-emp{margin:3mm 0 5mm;font-size:9.5pt}
+.tl .tl-t{width:100%;border-collapse:collapse;font-size:9pt}
+.tl .tl-t th{background:#2B2417;color:#EFE9DD;font-weight:700;text-align:left;padding:3mm 3mm;font-size:8pt}
+.tl .tl-t td{padding:2.6mm 3mm;border-bottom:.3mm solid #e2dccf;vertical-align:top;line-height:1.4}
+.tl .tl-t tbody tr:nth-child(odd) td{background:#f6f3ed}
+.tl .tl-t td.tl-d{font-weight:700;white-space:nowrap}
+.tl .tl-t td.tl-h{font-weight:700;text-align:right;white-space:nowrap}
+.tl .tl-t td b{font-weight:700}
+.tl .tl-sub+.tl-sub{margin-top:1.5mm}
+.tl .tl-mut{color:#8a7f6c;font-weight:400}
+.tl .tl-tot{align-self:flex-end;width:68mm;margin-top:7mm;background:#2B2417;border-top:.8mm solid #C9A560;border-radius:1mm;padding:3.5mm 5mm;display:flex;justify-content:space-between;color:#fff;font-weight:700;font-size:10.5pt}
+.tl .tl-tot span:last-child{color:#C9A560}
+.tl .tl-sign{display:grid;grid-template-columns:1fr 1fr;gap:12mm;margin-top:12mm}
+.tl .tl-line{border-bottom:.3mm solid #2B2417;height:8mm;display:flex;align-items:flex-end;gap:5mm;padding-bottom:1mm}
+.tl .tl-line i{font-weight:700;font-size:12pt;color:#2B2417}
+.tl .tl-line span{font-size:8.5pt;color:#5d5444;padding-bottom:.6mm}
+.tl .tl-sign small{display:block;font-size:7.5pt;color:#8a7f6c;margin-top:1.2mm}
+.tl .tl-foot{margin-top:auto;border-top:.4mm solid #C9A560;padding-top:2.5mm;text-align:center;font-size:7.5pt;color:#8a7f6c;line-height:1.5}
+.tl .tl-foot b{color:#2B2417;font-size:8pt}
 .pv-wrap{overflow:auto;border-radius:var(--r-m);background:#fff;margin-bottom:12px}
 .pv-scale{transform-origin:top left}
 
@@ -1094,20 +1125,31 @@ function vWeek(){
     </div>`;
 }
 function weekPdfHTML(){
-  const W=weekData(), y=S().yritys;
-  const rows=W.days.filter(d=>d.i<5||d.rows.length).map(d=>{
-    if(!d.rows.length) return `<tr><td><b>${PV[d.i]}</b><br><span style="color:#8a7f6c">${fiDate(d.iso)}</span></td><td style="text-align:left;color:#8a7f6c">–</td><td style="text-align:left"></td><td>–</td></tr>`;
-    return d.rows.map((h,k)=>`<tr>${k===0?`<td rowspan="${d.rows.length}" style="vertical-align:top"><b>${PV[d.i]}</b><br><span style="color:#8a7f6c">${fiDate(d.iso)}</span></td>`:""}<td style="text-align:left">${esc(hourPlace(h))}</td><td style="text-align:left">${esc(h.kuvaus||"")}</td><td>${nf(h.tunnit,2)} h</td></tr>`).join("");
+  const W=weekData(), y=S().yritys, ab=["Ma","Ti","Ke","To","Pe","La","Su"];
+  const days=W.days.filter(d=>d.i<5||d.rows.length);
+  const sum=rs=>rs.reduce((x,h)=>x+num(h.tunnit),0);
+  const rows=days.map(d=>{
+    const work = !d.rows.length ? `<span class="tl-mut">–</span>`
+      : d.rows.length===1 ? `<b>${esc(hourPlace(d.rows[0]))}</b>${d.rows[0].kuvaus?`<div>${esc(d.rows[0].kuvaus)}</div>`:""}`
+      : d.rows.map(h=>`<div class="tl-sub"><b>${esc(hourPlace(h))}</b> <span class="tl-mut">(${nf(h.tunnit,2)} h)</span>${h.kuvaus?`<div>${esc(h.kuvaus)}</div>`:""}</div>`).join("");
+    return `<tr><td class="tl-d">${ab[d.i]} ${fiDate(d.iso)}</td><td>${work}</td><td class="tl-h">${d.rows.length?nf(sum(d.rows),2)+" h":"–"}</td></tr>`;
   }).join("");
-  return `<div class="pdoc">
-    <div class="ph"><img src="${LOGO}" alt=""/><div class="pc"><b>${esc(y.nimi)}</b>${esc(y.osoite)}<br>Y-tunnus ${esc(y.ytunnus)}</div></div>
-    <div class="pb">
-      <div class="ptitle"><h1>Työtuntilista</h1><div class="meta">Viikko ${W.w} / ${W.y}<br>${W.range}</div></div>
-      <div class="pinfo"><div><div class="k">Työntekijä</div><b>${esc(WK.tekija)}</b></div><div><div class="k">Tunnit yhteensä</div><b style="font-size:14pt">${nf(W.tot,2)} h</b></div></div>
-      <table class="pt tt"><thead><tr><th style="width:22%">Päivä</th><th style="text-align:left;width:30%">Kohde</th><th style="text-align:left">Työ</th><th style="width:14%">Tunnit</th></tr></thead>
-        <tbody>${rows}<tr class="grp"><td colspan="3">Yhteensä</td><td>${nf(W.tot,2)} h</td></tr></tbody></table>
-      <div class="psign" style="margin-top:14mm"><div>Työntekijän allekirjoitus: ${esc(WK.tekija==="Teemu"?"Teemu Ravattinen":WK.tekija)} ${fiDate(todayISO())}</div><div>Työnantajan hyväksyntä</div></div>
-      <div class="pf">${esc(y.nimi)}  |  Y-tunnus ${esc(y.ytunnus)}  |  ${esc(y.osoite)}  |  ${esc(y.www)}</div>
+  const nimi = WK.tekija==="Teemu"?"Teemu Ravattinen":WK.tekija;
+  return `<div class="pdoc tl">
+    <div class="tl-top"><img src="${LOGO}" alt=""/></div>
+    <div class="tl-body">
+      <div class="tl-head">
+        <h1>TYÖTUNTILISTA</h1>
+        <table class="tl-meta"><tr><td>Päiväys</td><td>${fiDate(todayISO())}</td></tr><tr><td>Viikko</td><td>${W.w} / ${W.y}</td></tr><tr><td>Ajanjakso</td><td>${W.range}</td></tr></table>
+      </div>
+      <div class="tl-emp"><b>Työntekijä:</b> ${esc(WK.tekija)}</div>
+      <table class="tl-t"><thead><tr><th style="width:24mm">Päivä</th><th>Työkohde ja tehtävät</th><th style="width:18mm;text-align:right">Tunnit</th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="tl-tot"><span>YHTEENSÄ</span><span>${nf(W.tot,2)} h</span></div>
+      <div class="tl-sign">
+        <div><div class="tl-line"><i>${esc(nimi)}</i><span>${fiDate(todayISO())}</span></div><small>Työntekijän allekirjoitus ja pvm</small></div>
+        <div><div class="tl-line"></div><small>Hyväksyjän allekirjoitus ja pvm</small></div>
+      </div>
+      <div class="tl-foot"><b>${esc(y.nimi)}</b><br>${esc(y.osoite)}  |  ${esc(y.www)}</div>
     </div></div>`;
 }
 function printWeek(){
