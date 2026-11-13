@@ -269,6 +269,7 @@ nav.bar button.fab span.c svg{stroke:#1d170d;width:28px;height:28px;stroke-width
 .tl .tl-mut{color:#8a7f6c;font-weight:400}
 .tl .tl-tot{align-self:flex-end;width:68mm;margin-top:7mm;background:#2B2417;border-top:.8mm solid #C9A560;border-radius:1mm;padding:3.5mm 5mm;display:flex;justify-content:space-between;color:#fff;font-weight:700;font-size:10.5pt}
 .tl .tl-tot span:last-child{color:#C9A560}
+.tl .tl-pek{align-self:flex-end;font-size:8.5pt;color:#5d5444;margin-top:2mm}
 .tl .tl-sign{display:grid;grid-template-columns:1fr 1fr;gap:12mm;margin-top:12mm}
 .tl .tl-line{border-bottom:.3mm solid #2B2417;height:8mm;display:flex;align-items:flex-end;gap:5mm;padding-bottom:1mm}
 .tl .tl-line i{font-weight:700;font-size:12pt;color:#2B2417}
@@ -1046,7 +1047,7 @@ async function saveReceipt(){
    TUNNIT
    ===================================================================== */
 const MUU="__muu";
-const hourPlace = h=>{ const j=h.jobId&&job(h.jobId); return j?jobName(j):(h.kohde||"?"); };
+const hourPlace = h=>{ if(h.tyyppi==="pekkanen") return "Pekkanen"; const j=h.jobId&&job(h.jobId); return j?jobName(j):(h.kohde||"?"); };
 const hoursJobOpts = sel=>jobOpts(sel)+`<option value="${MUU}" ${sel===MUU?"selected":""}>Muu kohde (kirjoita)</option>`;
 
 /* ISO-viikot */
@@ -1072,22 +1073,40 @@ function vLog(p){
       <label class="f" id="hKohdeW" ${sel===MUU||(!activeJobs().length)?"":"hidden"}><span>Kohde</span><input id="hKohde" value="${esc(last.kohde||"")}" placeholder="Esim. Valtakatu 37"/></label>
       <div class="grid2"><label class="f"><span>Tekijä</span><select id="hTek">${DB.tekijat.map(t=>`<option ${t===last.tekija?"selected":""}>${esc(t)}</option>`).join("")}</select></label>
       <label class="f"><span>Päivä</span><input id="hPvm" type="date" value="${todayISO()}"/></label></div>
-      <label class="f"><span>Tunnit</span><div class="row"><button class="btn sm ghost" onclick="stepH(-0.5)" aria-label="Vähemmän">−</button><input id="hH" class="r" inputmode="decimal" value="${nf(last.h||8)}" style="text-align:center;font-size:22px;font-weight:700"/><button class="btn sm ghost" onclick="stepH(0.5)" aria-label="Enemmän">+</button></div></label>
+      <label class="f"><span id="hHl">Tunnit</span><div class="row"><button class="btn sm ghost" onclick="stepH(-0.5)" aria-label="Vähemmän">−</button><input id="hH" class="r" inputmode="decimal" value="${nf(last.h||8)}" oninput="pekSum()" style="text-align:center;font-size:22px;font-weight:700"/><button class="btn sm ghost" onclick="stepH(0.5)" aria-label="Enemmän">+</button></div></label>
+      <label class="toggle" style="padding:2px 0"><span>Osa päivästä pekkasta</span><input type="checkbox" id="hPekOn" onchange="pekToggle(this.checked)"/></label>
+      <div id="hPekW" hidden>
+        <label class="f"><span>Pekkasta</span><div class="row"><button class="btn sm ghost" onclick="stepP(-0.5)" aria-label="Vähemmän pekkasta">−</button><input id="hPek" class="r" inputmode="decimal" value="0" oninput="pekSum()" style="text-align:center;font-size:22px;font-weight:700"/><button class="btn sm ghost" onclick="stepP(0.5)" aria-label="Enemmän pekkasta">+</button></div></label>
+        <p class="small muted" id="hPekSum" style="margin-top:6px"></p>
+      </div>
       <label class="f"><span>Mitä tehtiin (näkyy tuntilistassa)</span><input id="hKuv" placeholder="Esim. vedeneristys, 2. kerros"/></label>
     </div>
     <button class="btn" style="margin-top:16px" onclick="saveHours()">Tallenna tunnit</button>
     ${recent.length?`<h2>Viimeisimmät</h2><div class="panel">${recent.map(hourRow).join("")}</div>`:""}`;
 }
 function hourRow(h){ return `<div class="li"><div class="ic">${esc((h.tekija||"?").slice(0,2))}</div><div class="tx"><b>${esc(hourPlace(h))}</b><span>${esc(h.tekija)}, ${fiDate(h.pvm)}${h.kuvaus?", "+esc(h.kuvaus):""}</span></div><div class="am num">${nf(h.tunnit,2)} h</div><button class="x" onclick="delHours('${h.id}')" aria-label="Poista tunnit">×</button></div>`; }
-function stepH(d){ const e=$("#hH"); e.value=nf(Math.max(0,num(e.value)+d)); }
+function stepH(d){ const e=$("#hH"); e.value=nf(Math.max(0,num(e.value)+d)); pekSum(); }
+function stepP(d){ const e=$("#hPek"); e.value=nf(Math.max(0,num(e.value)+d)); pekSum(); }
+function pekToggle(on){
+  $("#hPekW").hidden=!on; $("#hHl").textContent=on?"Tunnit työmaalla":"Tunnit";
+  const h=$("#hH"), p=$("#hPek");
+  if(on){ const t=num(h.value), pk=Math.min(4,t); p.value=nf(pk); h.value=nf(t-pk); } else { h.value=nf(num(h.value)+num(p.value)); p.value="0"; }
+  pekSum();
+}
+function pekSum(){ const e=$("#hPekSum"); if(!e||$("#hPekW").hidden) return; const t=num($("#hH").value), p=num($("#hPek").value); e.textContent=`Päivä yhteensä ${nf(t+p,2)} h: työmaalla ${nf(t,2)} h, pekkasta ${nf(p,2)} h`; }
 function saveHours(){
-  const t=num($("#hH").value); if(!t){ toast("Lisää tunnit"); return; }
+  const t=num($("#hH").value), p=$("#hPekOn")?.checked?num($("#hPek").value):0;
+  if(!t && !p){ toast("Lisää tunnit"); return; }
   const jv=$("#hJob").value, muu=jv===MUU||!jv, kohde=($("#hKohde")?.value||"").trim();
-  if(muu && !kohde){ toast("Kirjoita kohde"); $("#hKohde").focus(); return; }
-  const h={id:uid(),jobId:muu?null:jv,kohde:muu?kohde:"",tekija:$("#hTek").value,pvm:$("#hPvm").value,tunnit:t,kuvaus:$("#hKuv").value.trim(),luotu:Date.now()};
-  DB.hours.push(h); if(h.jobId) touch(job(h.jobId)); else save();
-  try{ localStorage.setItem("kr_last_hours",JSON.stringify({jobId:muu?MUU:h.jobId,kohde:h.kohde,tekija:h.tekija,h:t})); }catch(e){}
-  toast(h.jobId?`${nf(t)} h kirjattu, kate nyt ${pct(actuals(job(h.jobId)).ennPct)}`:`${nf(t)} h kirjattu`); render();
+  if(t && muu && !kohde){ toast("Kirjoita kohde"); $("#hKohde").focus(); return; }
+  const tek=$("#hTek").value, pvm=$("#hPvm").value, now=Date.now();
+  let h=null;
+  if(p) DB.hours.push({id:uid(),tyyppi:"pekkanen",jobId:null,kohde:"Pekkanen",tekija:tek,pvm,tunnit:p,kuvaus:"",luotu:now});
+  if(t){ h={id:uid(),jobId:muu?null:jv,kohde:muu?kohde:"",tekija:tek,pvm,tunnit:t,kuvaus:$("#hKuv").value.trim(),luotu:now+1}; DB.hours.push(h); }
+  if(h&&h.jobId) touch(job(h.jobId)); else save();
+  try{ localStorage.setItem("kr_last_hours",JSON.stringify({jobId:t?(muu?MUU:h.jobId):(JSON.parse(localStorage.getItem("kr_last_hours")||"{}").jobId),kohde:t&&muu?kohde:"",tekija:tek,h:t+p})); }catch(e){}
+  const pt=p?`, pekkasta ${nf(p)} h`:"";
+  toast(h&&h.jobId?`${nf(t)} h kirjattu${pt}, kate ${pct(actuals(job(h.jobId)).ennPct)}`:t?`${nf(t)} h kirjattu${pt}`:`Pekkasta ${nf(p)} h kirjattu`); render();
 }
 
 /* ---------- Viikon tuntilista ---------- */
@@ -1097,8 +1116,9 @@ function weekData(){
   for(let i=0;i<7;i++){ const d=new Date(mon); d.setDate(d.getDate()+i); const iso=isoOf(d);
     days.push({i,iso,rows:DB.hours.filter(h=>h.pvm===iso&&h.tekija===WK.tekija).sort((a,b)=>(a.luotu||0)-(b.luotu||0))}); }
   const tot=days.reduce((a,d)=>a+d.rows.reduce((x,h)=>x+num(h.tunnit),0),0);
+  const pek=days.reduce((a,d)=>a+d.rows.filter(h=>h.tyyppi==="pekkanen").reduce((x,h)=>x+num(h.tunnit),0),0);
   const {w,y}=isoWeek(mon), sun=new Date(mon); sun.setDate(sun.getDate()+6);
-  return {days,tot,w,y,mon,sun,range:`${mon.getDate()}.${mon.getMonth()+1}.–${sun.getDate()}.${sun.getMonth()+1}.${sun.getFullYear()}`};
+  return {days,tot,pek,w,y,mon,sun,range:`${mon.getDate()}.${mon.getMonth()+1}.–${sun.getDate()}.${sun.getMonth()+1}.${sun.getFullYear()}`};
 }
 function shiftWeek(n){ const d=new Date(WK.mon+"T12:00:00"); d.setDate(d.getDate()+7*n); WK.mon=isoOf(d); vWeek(); }
 function vWeek(){
@@ -1117,6 +1137,7 @@ function vWeek(){
           ${d.rows.map(h=>`<div class="row between small" style="margin-top:3px"><span class="muted">${esc(hourPlace(h))}${h.kuvaus?", "+esc(h.kuvaus):""}</span><span class="row" style="gap:4px"><span class="num">${nf(h.tunnit,2)} h</span><button class="x muted" style="width:26px;height:26px" onclick="delHours('${h.id}')" aria-label="Poista">×</button></span></div>`).join("")}
         </div>`).join("")}
       <div class="row between" style="border-top:1px solid var(--multa3);padding-top:10px;margin-top:4px;font-weight:750;font-size:18px"><span>Yhteensä</span><span class="num">${nf(W.tot,2)} h</span></div>
+      ${W.pek?`<div class="row between small muted" style="margin-top:4px"><span>josta pekkasta</span><span class="num">${nf(W.pek,2)} h</span></div><div class="row between small muted"><span>työmailla</span><span class="num">${nf(W.tot-W.pek,2)} h</span></div>`:""}
     </div>
     <div class="btns" style="margin-top:14px">
       <button class="btn" onclick="printWeek()" ${W.tot?"":"disabled"}>Tallenna PDF</button>
@@ -1145,6 +1166,7 @@ function weekPdfHTML(){
       <div class="tl-emp"><b>Työntekijä:</b> ${esc(WK.tekija)}</div>
       <table class="tl-t"><thead><tr><th style="width:24mm">Päivä</th><th>Työkohde ja tehtävät</th><th style="width:18mm;text-align:right">Tunnit</th></tr></thead><tbody>${rows}</tbody></table>
       <div class="tl-tot"><span>YHTEENSÄ</span><span>${nf(W.tot,2)} h</span></div>
+      ${W.pek?`<div class="tl-pek">josta pekkasta ${nf(W.pek,2)} h, työmailla ${nf(W.tot-W.pek,2)} h</div>`:""}
       <div class="tl-sign">
         <div><div class="tl-line"><i>${esc(nimi)}</i><span>${fiDate(todayISO())}</span></div><small>Työntekijän allekirjoitus ja pvm</small></div>
         <div><div class="tl-line"></div><small>Hyväksyjän allekirjoitus ja pvm</small></div>
@@ -1161,7 +1183,7 @@ function mailWeek(){
   const W=weekData();
   const lines=W.days.flatMap(d=>d.rows.map(h=>`${PV[d.i].slice(0,2)} ${fiDate(d.iso)}  ${hourPlace(h)}${h.kuvaus?" ("+h.kuvaus+")":""}  ${nf(h.tunnit,2)} h`));
   const subj=WK.tekija==="Teemu"?"Teemun työtunnit":`Työtunnit ${WK.tekija}`;
-  const body=`Tässä tämän viikon tunnit (vko ${W.w}, ${W.range}).\n\n${lines.join("\n")}\n\nYhteensä ${nf(W.tot,2)} h\n\nTerveisin, ${WK.tekija}`;
+  const body=`Tässä tämän viikon tunnit (vko ${W.w}, ${W.range}).\n\n${lines.join("\n")}\n\nYhteensä ${nf(W.tot,2)} h${W.pek?`, josta pekkasta ${nf(W.pek,2)} h`:""}\n\nTerveisin, ${WK.tekija}`;
   location.href=`mailto:${encodeURIComponent(S().tuntiEmail||"")}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
 }
 
