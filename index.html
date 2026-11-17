@@ -280,6 +280,12 @@ nav.bar button.fab span.c svg{stroke:#1d170d;width:28px;height:28px;stroke-width
 .pv-wrap{overflow:auto;border-radius:var(--r-m);background:#fff;margin-bottom:12px}
 .pv-scale{transform-origin:top left}
 
+/* Taittopuhelimen avattu näyttö ja tabletit */
+@media (min-width:700px){
+  .wrap{max-width:680px}
+  .top{padding-left:max(16px,calc((100% - 680px)/2 + 16px));padding-right:max(16px,calc((100% - 680px)/2 + 16px))}
+  nav.bar{padding-left:max(8px,calc((100% - 680px)/2));padding-right:max(8px,calc((100% - 680px)/2))}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -918,7 +924,7 @@ function pdfHTML(j){
       ${j.saate?`<div class="psaate">${esc(j.saate)}</div>`:""}
       ${table}
       <div class="ptots">
-        ${j.kvOn!==false&&c.t.myynti>0?`<div class="pkv"><div class="h">Kotitalousvähennys, arvio</div>
+        ${j.kvOn!==false&&c.t.myynti>0&&c.kv>0?`<div class="pkv"><div class="h">Kotitalousvähennys, arvio</div>
           <div class="pr"><span>Työn osuus sis. alv</span><span>${eur(c.tyoAlv)}</span></div>
           <div class="pr"><span>Vähennys ${nf(s.kvPros)} %</span><span>${eur(c.kvBrutto)}</span></div>
           <div class="pr"><span>Omavastuu${c.hlo>1?" (2 hlöä)":""}</span><span>−${eur(num(s.kvOmav)*c.hlo)}</span></div>
