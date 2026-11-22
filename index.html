@@ -277,6 +277,21 @@ nav.bar button.fab span.c svg{stroke:#1d170d;width:28px;height:28px;stroke-width
 .tl .tl-sign small{display:block;font-size:7.5pt;color:#8a7f6c;margin-top:1.2mm}
 .tl .tl-foot{margin-top:auto;border-top:.4mm solid #C9A560;padding-top:2.5mm;text-align:center;font-size:7.5pt;color:#8a7f6c;line-height:1.5}
 .tl .tl-foot b{color:#2B2417;font-size:8pt}
+.fu .fu-t{font-size:8.3pt}
+.fu .fu-t th,.fu .fu-t td{padding:2.2mm 2mm}
+.fu .fu-t .r,.fu .fu-vat .r{text-align:right;white-space:nowrap}
+.fu .fu-sum{display:flex;justify-content:space-between;align-items:flex-start;gap:8mm;margin-top:6mm}
+.fu .fu-vat{border-collapse:collapse;font-size:8.5pt;min-width:88mm}
+.fu .fu-vat th{text-align:left;color:#8a7f6c;font-weight:600;border-bottom:.3mm solid #C9A560;padding:1.2mm 2mm}
+.fu .fu-vat td{padding:1.2mm 2mm;border-bottom:.2mm solid #e2dccf}
+.fu .fu-vat tr.t td{font-weight:700;border-bottom:none}
+.fu-page{width:210mm;min-height:296mm;background:#fff;color:#1d1a14;font-family:Helvetica,Arial,sans-serif;padding:12mm 14mm;page-break-before:always;break-before:page}
+.fu-ph{font-size:9pt;color:#5d5444;border-bottom:.5mm solid #C9A560;padding-bottom:2mm;margin-bottom:5mm}
+.fu-grid{display:grid;grid-template-columns:1fr 1fr;gap:6mm}
+.fu-grid figure{margin:0;text-align:center;page-break-inside:avoid}
+.fu-grid img{max-width:100%;height:118mm;object-fit:contain;display:block;margin:0 auto;border:.3mm solid #e2dccf}
+.fu-no{height:118mm;display:grid;place-items:center;border:.3mm dashed #c9c0ae;color:#8a7f6c;font-size:9pt}
+.fu-grid figcaption{font-size:8.5pt;margin-top:1.5mm}
 .pv-wrap{overflow:auto;border-radius:var(--r-m);background:#fff;margin-bottom:12px}
 .pv-scale{transform-origin:top left}
 
@@ -322,7 +337,7 @@ const DEFAULTS = {
     yritys:{nimi:"Rakennustyö Kaivola & Ravattinen Ay", yhteys:"Heikki Ravattinen", puh:"+358 500 150 192", email:"", osoite:"Lipiäläntie 91, 54100 Joutseno", ytunnus:"0578425-4", www:"rakennustyokaivolaravattinen.fi"},
     tuntihinta:42, palkkakulu:30, katetavoite:30, matkate:15, alv:25.5,
     kvPros:40, kvOmav:150, kvMax:2100,
-    voimassa:30, maksuehto:"14 päivää netto", tuntiEmail:"heikki.ravattinen@gmail.com"
+    voimassa:30, maksuehto:"14 päivää netto", tuntiEmail:"heikki.ravattinen@gmail.com", ajoneuvo:""
   },
   hinnasto:[
     {id:"h1",tyyppi:"mat",nimi:"Schönox HA vedeneriste 22 kg (n. 22 m², 2 krt)",yks:"kpl",osto:135,myynti:null,h:null},
@@ -345,7 +360,7 @@ const DEFAULTS = {
     "Työmaalla tulee olla käytettävissä sähkö ja vesi."
   ],
   tekijat:["Teemu","Heikki"],
-  jobs:[], receipts:[], hours:[], seq:{}
+  jobs:[], receipts:[], hours:[], fuel:[], seq:{}
 };
 
 /* ---------- Data ---------- */
@@ -558,8 +573,8 @@ async function pasteClip(){
 async function addImgs(files,target){
   for(const f of files){ try{ const d=await shrink(f); target.push(d); }catch(e){ toast("Kuvaa ei voitu lukea"); } }
 }
-$("#fileCam").onchange=async e=>{ const f=[...e.target.files]; e.target.value=""; if(R.name==="receipt"){ await pickReceipt(f[0]); } else { await addImgs(f,NEW.imgs); render(); } };
-$("#fileGal").onchange=async e=>{ const f=[...e.target.files]; e.target.value=""; if(R.name==="receipt"){ await pickReceipt(f[0]); } else { await addImgs(f,NEW.imgs); render(); } };
+$("#fileCam").onchange=async e=>{ const f=[...e.target.files]; e.target.value=""; if(R.name==="receipt"){ if(R.p.tab==="fuel") await pickFuel(f[0]); else await pickReceipt(f[0]); } else { await addImgs(f,NEW.imgs); render(); } };
+$("#fileGal").onchange=async e=>{ const f=[...e.target.files]; e.target.value=""; if(R.name==="receipt"){ if(R.p.tab==="fuel") await pickFuel(f[0]); else await pickReceipt(f[0]); } else { await addImgs(f,NEW.imgs); render(); } };
 
 /* Sanelu: Chromen puheentunnistus suomeksi */
 function toggleVoice(){
@@ -983,10 +998,15 @@ const jobOpts = sel=>activeJobs().map(j=>`<option value="${j.id}" ${j.id===sel?"
 
 function vReceipt(p){
   setTop("Kuitti",true);
+  const tab=p.tab||"tyomaa";
+  $("#view").innerHTML=`<div class="tabs"><button class="${tab==="tyomaa"?"on":""}" onclick="R.p.tab='tyomaa';render()">Työmaan kuitti</button><button class="${tab==="fuel"?"on":""}" onclick="R.p.tab='fuel';render()">Polttoaine</button></div><div id="rBody"></div>`;
+  tab==="fuel"?vFuel(p):vReceiptJob(p);
+}
+function vReceiptJob(p){
   if(!RC || (p.jobId && RC.jobFor!==p.jobId && !RC.img)) RC={jobFor:p.jobId||null};
-  if(!activeJobs().length){ $("#view").innerHTML=`<div class="empty"><b>Ei avoimia työmaita</b>Kuitti kohdistetaan aina työmaalle. Tee ensin tarjous.</div><button class="btn" onclick="go('new')">Uusi tarjous</button>`; return; }
+  if(!activeJobs().length){ $("#rBody").innerHTML=`<div class="empty"><b>Ei avoimia työmaita</b>Kuitti kohdistetaan aina työmaalle. Tee ensin tarjous.</div><button class="btn" onclick="go('new')">Uusi tarjous</button>`; return; }
   if(!RC.img && !RC.manual){
-    $("#view").innerHTML=`
+    $("#rBody").innerHTML=`
       <h1>Kuvaa kuitti</h1>
       <p class="lead">Tekoäly lukee toimittajan, päivän ja summan, ja ehdottaa oikeaa työmaata. Sinä vahvistat.</p>
       <button class="btn" onclick="$('#fileCam').click()">Ota kuva kuitista</button>
@@ -996,7 +1016,7 @@ function vReceipt(p){
     return;
   }
   const d=RC.d||{};
-  $("#view").innerHTML=`
+  $("#rBody").innerHTML=`
     ${RC.img?`<div class="row" style="gap:12px;align-items:flex-start"><img src="${RC.thumb||RC.img}" style="width:84px;height:110px;object-fit:cover;border-radius:8px" alt="Kuitti"/>
       <div>${RC.busy?'<div class="row"><span class="spin" style="border-color:rgba(239,233,221,.25);border-top-color:var(--kulta)"></span><span>Luetaan kuittia…</span></div>':RC.err?`<div class="err">${esc(RC.err)}</div>`:'<p class="small muted">Tarkista tiedot ja vahvista työmaa.</p>'}</div></div>`:""}
     <div class="stack" style="margin-top:14px">
@@ -1047,6 +1067,162 @@ async function saveReceipt(){
   const j=job(r.jobId), a=actuals(j);
   RC=null; go("job",{id:j.id,tab:"toteuma"},true);
   toast(`Kohdistettu, kate nyt ${pct(a.ennPct)}`);
+}
+
+
+/* =====================================================================
+   POLTTOAINEKUITIT → kuukausiraportti kirjanpitäjälle
+   ===================================================================== */
+let FC=null, FM=null, FT=null;
+const fuelOf = (ym,tek)=>DB.fuel.filter(f=>(f.pvm||"").slice(0,7)===ym&&f.tekija===tek).sort((a,b)=>(a.pvm||"").localeCompare(b.pvm||"")||(a.luotu-b.luotu));
+const ymLabel = ym=>{ const [y,m]=ym.split("-"); return `${+m}/${y}`; };
+const KK=["tammikuu","helmikuu","maaliskuu","huhtikuu","toukokuu","kesäkuu","heinäkuu","elokuu","syyskuu","lokakuu","marraskuu","joulukuu"];
+function shiftMonth(n){ const [y,m]=FM.split("-").map(Number); const d=new Date(y,m-1+n,1); FM=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; render(); }
+function fuelTotals(list){
+  const g={}; let alv0=0,alv=0,yht=0,l=0,oma=0;
+  list.forEach(f=>{ const k=nf(f.alvPros,1); g[k]=g[k]||{alv0:0,alv:0,yht:0}; g[k].alv0+=num(f.alv0); g[k].alv+=num(f.alv); g[k].yht+=num(f.yht);
+    alv0+=num(f.alv0); alv+=num(f.alv); yht+=num(f.yht); l+=num(f.litrat); if(f.maksu!=="firma") oma+=num(f.yht); });
+  return {g,alv0,alv,yht,l,oma};
+}
+function vFuel(p){
+  if(!FM) FM=todayISO().slice(0,7);
+  if(!FT){ FT=DB.tekijat[0]||"Teemu"; try{ FT=JSON.parse(localStorage.getItem("kr_last_hours")||"{}").tekija||FT; }catch(e){} }
+  if(FC && (FC.img||FC.manual)) return fuelForm();
+  const list=fuelOf(FM,FT), T=fuelTotals(list);
+  $("#rBody").innerHTML=`
+    <div class="grid2" style="margin-bottom:8px">
+      <button class="btn" onclick="FC={};$('#fileCam').click()">Kuvaa kuitti</button>
+      <button class="btn ghost" onclick="FC={};$('#fileGal').click()">Galleriasta</button>
+    </div>
+    <button class="btn line" style="margin-bottom:16px" onclick="FC={manual:true,d:{pvm:todayISO()}};render()">Syötä käsin ilman kuvaa</button>
+    <div class="row between" style="margin-bottom:10px">
+      <button class="btn sm ghost" onclick="shiftMonth(-1)" aria-label="Edellinen kuukausi">‹</button>
+      <div style="text-align:center"><div style="font-stretch:75%;font-weight:800;font-size:24px">${KK[+FM.slice(5)-1].replace(/^./,c=>c.toUpperCase())} ${FM.slice(0,4)}</div><div class="small muted">${list.length} kuittia</div></div>
+      <button class="btn sm ghost" onclick="shiftMonth(1)" aria-label="Seuraava kuukausi">›</button>
+    </div>
+    ${DB.tekijat.length>1?`<label class="f" style="margin-bottom:10px"><span>Kenen kuitit</span><select onchange="FT=this.value;render()">${DB.tekijat.map(t=>`<option ${t===FT?"selected":""}>${esc(t)}</option>`).join("")}</select></label>`:""}
+    <div class="panel">${list.length?list.map((f,i)=>`
+      <div class="li"><div class="ic"><img data-thumb="${f.id}" alt=""/></div>
+        <div class="tx"><b>${i+1}. ${esc(f.asema||"Polttoaine")}</b><span>${fiDate(f.pvm)}${f.litrat?`, ${nf(f.litrat,2)} l`:""}${f.polttoaine?`, ${esc(f.polttoaine)}`:""}${f.maksu==="firma"?", firman kortti":""}</span></div>
+        <div class="am num">${eur(f.yht)}</div><button class="x" onclick="delFuel('${f.id}')" aria-label="Poista kuitti">×</button></div>`).join(""):'<p class="small muted">Ei polttoainekuitteja tältä kuulta.</p>'}</div>
+    ${list.length?`
+    <div class="panel"><table class="sum-tbl">
+      ${Object.entries(T.g).map(([k,v])=>`<tr class="sub"><td>Alv ${k} %: veroton ${eur(v.alv0)}</td><td>alv ${eur(v.alv)}</td></tr>`).join("")}
+      <tr class="sub"><td>Litrat yhteensä</td><td>${nf(T.l,2)} l</td></tr>
+      <tr class="tot"><td>Yhteensä</td><td>${eur(T.yht)}</td></tr>
+      ${T.oma?`<tr><td>Maksettu omilla rahoilla (korvataan)</td><td>${eur(T.oma)}</td></tr>`:""}
+    </table></div>
+    <div class="btns">
+      <button class="btn" onclick="printFuel()">Tallenna PDF kirjanpitäjälle</button>
+      <div class="grid2"><button class="btn ghost" onclick="csvFuel()">Lataa Excel (CSV)</button><button class="btn ghost" onclick="mailFuel()">Lähetä sähköpostilla</button></div>
+      <p class="small muted" style="text-align:center">PDF:ssä on yhteenveto ja kuittien kuvat liitteinä. Liitä tiedosto sähköpostiin itse.</p>
+    </div>`:""}`;
+}
+async function pickFuel(file){
+  if(!file) return;
+  const img=await shrink(file,1568,.85), full=await shrink(file,1400,.8), thumb=await shrink(file,360,.7);
+  FC={img,full,thumb,busy:true,d:{pvm:todayISO()}}; render();
+  if(!S().apiKey){ FC.busy=false; FC.err="API-avain puuttuu, täytä tiedot käsin."; render(); return; }
+  const prompt=`Lue tämä suomalainen polttoaineen ostokuitti (huoltoasema). Palauta VAIN JSON:
+{"asema":"esim. Neste Joutseno","pvm":"YYYY-MM-DD","polttoaine":"esim. Diesel, 95E10, 98E5, AdBlue","litrat":0,"hinta_per_litra":0,"alv_prosentti":25.5,"summa_alv0":0,"alv":0,"yhteensa":0}
+Jos kuitissa on useita tuotteita, laske summat koko kuitista ja kirjoita "polttoaine"-kenttään päätuote. Jos jotain ei näy, käytä 0 tai tyhjää.`;
+  try{
+    const d=await claude([imgBlock(img),{type:"text",text:prompt}],1500);
+    FC.d={asema:d.asema||"",pvm:d.pvm||todayISO(),polttoaine:d.polttoaine||"",litrat:num(d.litrat),hintaL:num(d.hinta_per_litra),alvPros:num(d.alv_prosentti)||num(S().alv),alv0:num(d.summa_alv0),alv:num(d.alv),yht:num(d.yhteensa)};
+    const k=FC.d.alvPros/100;
+    if(FC.d.yht && !FC.d.alv0){ FC.d.alv0=Math.round(FC.d.yht/(1+k)*100)/100; FC.d.alv=Math.round((FC.d.yht-FC.d.alv0)*100)/100; }
+    FC.busy=false; render();
+  }catch(e){ FC.busy=false; FC.err="Kuitin luku ei onnistunut: "+e.message+" Täytä tiedot käsin."; render(); }
+}
+function fuelForm(){
+  const d=FC.d||{}, st=S();
+  let ajo=st.ajoneuvo||"", maksu="oma"; try{ const l=JSON.parse(localStorage.getItem("kr_last_fuel")||"{}"); ajo=l.ajoneuvo??ajo; maksu=l.maksu||maksu; }catch(e){}
+  $("#rBody").innerHTML=`
+    ${FC.img?`<div class="row" style="gap:12px;align-items:flex-start"><img src="${FC.thumb||FC.img}" style="width:84px;height:110px;object-fit:cover;border-radius:8px" alt="Kuitti"/>
+      <div>${FC.busy?'<div class="row"><span class="spin" style="border-color:rgba(239,233,221,.25);border-top-color:var(--kulta)"></span><span>Luetaan kuittia…</span></div>':FC.err?`<div class="err">${esc(FC.err)}</div>`:'<p class="small muted">Tarkista tiedot ennen tallennusta.</p>'}</div></div>`:"<h1>Polttoainekuitti</h1>"}
+    <div class="stack" style="margin-top:14px">
+      <div class="grid2"><label class="f"><span>Asema</span><input id="fuA" value="${esc(d.asema||"")}" placeholder="Neste Joutseno"/></label>
+      <label class="f"><span>Päivä</span><input id="fuP" type="date" value="${esc(d.pvm||todayISO())}"/></label></div>
+      <div class="grid2"><label class="f"><span>Polttoaine</span><input id="fuF" list="fuList" value="${esc(d.polttoaine||"")}" placeholder="Diesel"/></label>
+      <label class="f"><span>Litrat</span><input id="fuL" class="r" inputmode="decimal" value="${nf(d.litrat)}"/></label></div>
+      <datalist id="fuList"><option>Diesel</option><option>95E10</option><option>98E5</option><option>AdBlue</option><option>Moottoribensiini 2T</option></datalist>
+      <div class="grid2"><label class="f"><span>Yhteensä € (sis. alv)</span><input id="fuY" class="r" inputmode="decimal" value="${nf(d.yht)}" oninput="fuelAuto()"/></label>
+      <label class="f"><span>Alv %</span><input id="fuK" class="r" inputmode="decimal" value="${nf(d.alvPros||st.alv,1)}" oninput="fuelAuto()"/></label></div>
+      <div class="grid2"><label class="f"><span>Veroton €</span><input id="fu0" class="r" inputmode="decimal" value="${nf(d.alv0)}"/></label>
+      <label class="f"><span>Alv €</span><input id="fuV" class="r" inputmode="decimal" value="${nf(d.alv)}"/></label></div>
+      <div class="grid2"><label class="f"><span>Ajoneuvo / rekisterinumero</span><input id="fuR" value="${esc(ajo)}" placeholder="ABC-123"/></label>
+      <label class="f"><span>Maksettu</span><select id="fuM"><option value="oma" ${maksu!=="firma"?"selected":""}>Omilla rahoilla</option><option value="firma" ${maksu==="firma"?"selected":""}>Firman kortilla</option></select></label></div>
+      <div class="grid2"><label class="f"><span>Tekijä</span><select id="fuT">${DB.tekijat.map(t=>`<option ${t===FT?"selected":""}>${esc(t)}</option>`).join("")}</select></label>
+      <label class="f"><span>Lisätieto (valinnainen)</span><input id="fuH" placeholder="Esim. työmaa tai ajo"/></label></div>
+    </div>
+    <div class="btns" style="margin-top:16px"><button class="btn" onclick="saveFuel()" ${FC.busy?"disabled":""}>Tallenna kuitti</button><button class="btn line" onclick="FC=null;render()">Peru</button></div>`;
+}
+function fuelAuto(){ const y=num($("#fuY").value), k=num($("#fuK").value)/100; if(!y) return; const a0=Math.round(y/(1+k)*100)/100; $("#fu0").value=nf(a0); $("#fuV").value=nf(Math.round((y-a0)*100)/100); }
+async function saveFuel(){
+  const yht=num($("#fuY").value); if(!yht){ toast("Lisää kuitin summa"); $("#fuY").focus(); return; }
+  let alv0=num($("#fu0").value), alv=num($("#fuV").value); const k=num($("#fuK").value);
+  if(!alv0){ alv0=Math.round(yht/(1+k/100)*100)/100; alv=Math.round((yht-alv0)*100)/100; }
+  const f={id:uid(),asema:$("#fuA").value.trim(),pvm:$("#fuP").value||todayISO(),polttoaine:$("#fuF").value.trim(),litrat:num($("#fuL").value),alvPros:k,alv0,alv,yht,
+    ajoneuvo:$("#fuR").value.trim(),maksu:$("#fuM").value,tekija:$("#fuT").value,huom:$("#fuH").value.trim(),luotu:Date.now()};
+  if(FC.thumb){ try{ await idb.put(f.id,FC.thumb); await idb.put("full_"+f.id,FC.full||FC.img); }catch(e){ toast("Kuvan tallennus epäonnistui"); } }
+  DB.fuel.push(f); save();
+  try{ localStorage.setItem("kr_last_fuel",JSON.stringify({ajoneuvo:f.ajoneuvo,maksu:f.maksu})); }catch(e){}
+  FC=null; FM=f.pvm.slice(0,7); FT=f.tekija; render(); toast(`Kuitti tallennettu, ${eur(f.yht)}`);
+}
+function delFuel(id){ if(!confirm("Poistetaanko polttoainekuitti?")) return; DB.fuel=DB.fuel.filter(f=>f.id!==id); idb.del(id).catch(()=>{}); idb.del("full_"+id).catch(()=>{}); save(); render(); }
+
+async function fuelPdfHTML(){
+  const list=fuelOf(FM,FT), T=fuelTotals(list), y=S().yritys;
+  const nimi=FT==="Teemu"?"Teemu Ravattinen":FT;
+  const imgs=await Promise.all(list.map(async f=>{ try{ return (await idb.get("full_"+f.id))||(await idb.get(f.id))||""; }catch(e){ return ""; } }));
+  const ajoneuvot=[...new Set(list.map(f=>f.ajoneuvo).filter(Boolean))].join(", ");
+  const rows=list.map((f,i)=>`<tr><td>${i+1}</td><td>${fiDate(f.pvm)}</td><td>${esc(f.asema)}${f.huom?`<div class="tl-mut">${esc(f.huom)}</div>`:""}</td><td>${esc(f.polttoaine)}</td><td class="r">${f.litrat?Number(f.litrat).toLocaleString("fi-FI",{minimumFractionDigits:2,maximumFractionDigits:2}):""}</td><td class="r">${eur(f.alv0)}</td><td class="r">${eur(f.alv)}</td><td class="r"><b>${eur(f.yht)}</b></td><td>${f.maksu==="firma"?"Firma":"Oma"}</td></tr>`).join("");
+  const pages=[]; for(let i=0;i<list.length;i+=4) pages.push(list.slice(i,i+4).map((f,k)=>({f,n:i+k+1,src:imgs[i+k]})));
+  return `<div class="pdoc tl fu">
+    <div class="tl-top"><img src="${LOGO}" alt=""/></div>
+    <div class="tl-body">
+      <div class="tl-head"><h1>POLTTOAINEKUITIT</h1>
+        <table class="tl-meta"><tr><td>Päiväys</td><td>${fiDate(todayISO())}</td></tr><tr><td>Kuukausi</td><td>${ymLabel(FM)}</td></tr><tr><td>Kuitteja</td><td>${list.length} kpl</td></tr></table></div>
+      <div class="tl-emp"><b>Henkilö:</b> ${esc(nimi)}${ajoneuvot?`   <b>Ajoneuvo:</b> ${esc(ajoneuvot)}`:""}</div>
+      <table class="tl-t fu-t"><thead><tr><th>Nro</th><th>Pvm</th><th>Asema</th><th>Tuote</th><th class="r">Litrat</th><th class="r">Veroton</th><th class="r">Alv</th><th class="r">Yhteensä</th><th>Maksu</th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="fu-sum">
+        <table class="fu-vat"><thead><tr><th>Alv %</th><th class="r">Veroton</th><th class="r">Alv</th><th class="r">Yhteensä</th></tr></thead><tbody>
+          ${Object.entries(T.g).map(([k,v])=>`<tr><td>${k} %</td><td class="r">${eur(v.alv0)}</td><td class="r">${eur(v.alv)}</td><td class="r">${eur(v.yht)}</td></tr>`).join("")}
+          <tr class="t"><td>Yhteensä</td><td class="r">${eur(T.alv0)}</td><td class="r">${eur(T.alv)}</td><td class="r">${eur(T.yht)}</td></tr></tbody></table>
+        <div class="tl-tot" style="margin-top:0;width:72mm"><span>YHTEENSÄ</span><span>${eur(T.yht)}</span></div>
+      </div>
+      <div class="tl-pek">Litrat yhteensä ${nf(T.l,2)} l${T.oma?`  |  Maksettu omilla rahoilla, korvataan: <b>${eur(T.oma)}</b>`:""}</div>
+      <div class="tl-sign">
+        <div><div class="tl-line"><i>${esc(nimi)}</i><span>${fiDate(todayISO())}</span></div><small>Esittäjän allekirjoitus ja pvm</small></div>
+        <div><div class="tl-line"></div><small>Hyväksyjän allekirjoitus ja pvm</small></div>
+      </div>
+      <div class="tl-foot"><b>${esc(y.nimi)}</b><br>${esc(y.osoite)}  |  Y-tunnus ${esc(y.ytunnus)}</div>
+    </div></div>
+    ${pages.map(pg=>`<div class="fu-page"><div class="fu-ph">Liite: kuittikuvat ${ymLabel(FM)}, ${esc(nimi)}</div><div class="fu-grid">
+      ${pg.map(x=>`<figure>${x.src?`<img src="${x.src}" alt=""/>`:`<div class="fu-no">Ei kuvaa (syötetty käsin)</div>`}<figcaption><b>${x.n}.</b> ${fiDate(x.f.pvm)} ${esc(x.f.asema)}, ${eur(x.f.yht)}</figcaption></figure>`).join("")}
+    </div></div>`).join("")}`;
+}
+async function printFuel(){
+  const list=fuelOf(FM,FT); if(!list.length) return;
+  $("#print").innerHTML=await fuelPdfHTML();
+  const ims=[...document.querySelectorAll("#print img")];
+  await Promise.all(ims.map(im=>im.complete?0:new Promise(r=>{im.onload=im.onerror=r;})));
+  const t=document.title; document.title=`Polttoainekuitit ${FM} ${FT}`;
+  setTimeout(()=>{ window.print(); document.title=t; },200);
+}
+function csvFuel(){
+  const list=fuelOf(FM,FT), c=v=>{ const s=String(v??""); return /[;"\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s; }, n=v=>v?Number(v).toLocaleString("fi-FI",{minimumFractionDigits:2,maximumFractionDigits:2,useGrouping:false}):"";
+  const lines=[["Nro","Päivä","Asema","Tuote","Litrat","Alv %","Veroton","Alv","Yhteensä","Ajoneuvo","Maksettu","Henkilö","Lisätieto"].join(";")]
+    .concat(list.map((f,i)=>[i+1,fiDate(f.pvm),c(f.asema),c(f.polttoaine),n(f.litrat),nf(f.alvPros,1),n(f.alv0),n(f.alv),n(f.yht),c(f.ajoneuvo),f.maksu==="firma"?"Firman kortti":"Omat rahat",c(f.tekija),c(f.huom)].join(";")));
+  const T=fuelTotals(list); lines.push(["","","","Yhteensä",n(T.l),"",n(T.alv0),n(T.alv),n(T.yht)].join(";"));
+  const a=document.createElement("a");
+  a.href="data:text/csv;charset=utf-8,"+encodeURIComponent("﻿"+lines.join("\r\n"));
+  a.download=`polttoainekuitit-${FM}-${FT}.csv`; document.body.appendChild(a); a.click(); a.remove();
+}
+function mailFuel(){
+  const list=fuelOf(FM,FT), T=fuelTotals(list);
+  const body=`Hei,\n\nliitteenä polttoainekuitit ${ymLabel(FM)} (${list.length} kpl).\n\nYhteensä ${eur(T.yht)} (veroton ${eur(T.alv0)}, alv ${eur(T.alv)})${T.oma?`\nOmilla rahoilla maksettu, korvattava: ${eur(T.oma)}`:""}\n\nTerveisin, ${FT}`;
+  location.href=`mailto:${encodeURIComponent(S().tuntiEmail||"")}?subject=${encodeURIComponent(`Polttoainekuitit ${ymLabel(FM)} – ${FT}`)}&body=${encodeURIComponent(body)}`;
 }
 
 /* =====================================================================
@@ -1218,7 +1394,8 @@ function vSettings(){
 
     <h2>Tekijät</h2>
     <input value="${esc(DB.tekijat.join(", "))}" onchange="DB.tekijat=this.value.split(',').map(x=>x.trim()).filter(Boolean);save();toast('Tallennettu')" placeholder="Teemu, Heikki"/>
-    <label class="f" style="margin-top:10px"><span>Tuntilistan vastaanottaja (sähköposti)</span><input type="email" value="${esc(s.tuntiEmail||"")}" onchange="setS('tuntiEmail',this.value.trim())"/></label>
+    <label class="f" style="margin-top:10px"><span>Oletusajoneuvo polttoainekuiteille (rekisterinumero)</span><input value="${esc(s.ajoneuvo||"")}" onchange="setS('ajoneuvo',this.value.trim())" placeholder="ABC-123"/></label>
+    <label class="f" style="margin-top:10px"><span>Tuntilistan ja kuittien vastaanottaja (sähköposti)</span><input type="email" value="${esc(s.tuntiEmail||"")}" onchange="setS('tuntiEmail',this.value.trim())"/></label>
 
     <h2>Yritys tarjouksessa</h2>
     <div class="panel stack">
